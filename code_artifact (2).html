@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>星空計時器 | Space Timer</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000000; /* 極致純黑底色 */
+            color: #ffffff;
+            overflow: hidden;
+        }
+        .font-timer {
+            font-family: 'JetBrains Mono', monospace;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col justify-between relative select-none">
+
+    <!-- 背景 Canvas 星空 (四角星全局呼吸感) -->
+    <canvas id="starfield" class="absolute inset-0 w-full h-full pointer-events-none z-0"></canvas>
+
+    <!-- 頂部簡約 Logo 與 全螢幕按鈕 -->
+    <header class="w-full max-w-7xl mx-auto px-8 py-8 flex justify-between items-center z-10">
+        <!-- 左側 Logo -->
+        <div class="flex items-center gap-2.5 opacity-40 hover:opacity-80 transition-opacity duration-300">
+            <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+            </svg>
+            <span class="text-xs font-semibold tracking-[0.2em] uppercase">Space Timer</span>
+        </div>
+        
+        <!-- 右側：全螢幕控制按鈕 -->
+        <div>
+            <button id="btn-fullscreen" class="p-2 text-zinc-500 hover:text-white transition-colors duration-200 focus:outline-none" title="切換全螢幕">
+                <!-- 放大 Icon -->
+                <svg id="fullscreen-expand-icon" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75v4.5m0-4.5h-4.5m4.5 0L15 9m5.25 11.25v-4.5m0 4.5h-4.5m4.5 0L15 15" />
+                </svg>
+                <!-- 縮小 Icon -->
+                <svg id="fullscreen-compress-icon" class="w-5 h-5 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75m10.5 5.25V4.5m0 4.5h4.5M15 9l5.25-5.25M9 15v4.5M9 15H4.5M9 15l-5.25 5.25m11.25-5.25v4.5m0-4.5h4.5m-4.5 0l5.25 5.25" />
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- 主內容區：超大計時器 -->
+    <main class="flex-grow flex flex-col items-center justify-center px-6 z-10 -mt-12">
+        
+        <!-- 巨大正向計時數字 -->
+        <div id="timer-display" class="font-timer text-7xl sm:text-8xl md:text-[11rem] lg:text-[14rem] font-bold tracking-tight leading-none text-white select-none transition-all duration-300">
+            00:00
+        </div>
+
+        <!-- 底部操作控制項 -->
+        <div class="flex items-center gap-8 mt-16">
+            <!-- 重設按鈕 -->
+            <button id="btn-reset" class="group flex items-center justify-center w-12 h-12 rounded-full border border-zinc-800 bg-zinc-950/40 hover:bg-zinc-900/60 text-zinc-400 hover:text-white transition-all duration-300 focus:outline-none" title="重設計時">
+                <svg class="w-5 h-5 group-hover:rotate-[-45deg] transition-transform duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+            </button>
+
+            <!-- 開始 / 暫停按鈕 (實心白) -->
+            <button id="btn-play-pause" class="w-20 h-20 rounded-full bg-white text-black hover:bg-zinc-200 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 focus:outline-none shadow-xl shadow-white/5" title="開始計時">
+                <!-- Play Icon -->
+                <svg id="play-icon" class="w-7 h-7 translate-x-0.5" viewBox="0 0 24 24" fill="currentColor">
+                    <path fill-rule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clip-rule="evenodd" />
+                </svg>
+                <!-- Pause Icon -->
+                <svg id="pause-icon" class="w-7 h-7 hidden" viewBox="0 0 24 24" fill="currentColor">
+                    <path fill-rule="evenodd" d="M6.75 5.25a.75.75 0 01.75-.75H9a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H7.5a.75.75 0 01-.75-.75V5.25zm7.5 0A.75.75 0 0115 4.5h1.5a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H15a.75.75 0 01-.75-.75V5.25z" clip-rule="evenodd" />
+                </svg>
+            </button>
+        </div>
+
+    </main>
+
+    <!-- 底部：留空（維持簡約感） -->
+    <footer class="w-full py-8 text-center text-[10px] text-zinc-800 tracking-[0.3em] uppercase z-10">
+        Silence & Focus
+    </footer>
+
+    <!-- JavaScript 邏輯 -->
+    <script>
+        // --- 1. 璀璨星空 Canvas 繪製邏輯 (四角星芒版) ---
+        const canvas = document.getElementById('starfield');
+        const ctx = canvas.getContext('2d');
+        let stars = [];
+        const STAR_COUNT = 85; // 適量的星星，精緻不凌亂
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            initStars();
+        }
+
+        class Star {
+            constructor() {
+                this.reset();
+                // 隨機賦予初始閃爍進度，避免所有星星同時閃爍
+                this.alpha = Math.random() * this.baseAlpha;
+            }
+
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                // 四角星芒的外延半徑 (進一步放大尺寸：6.0px 到 14.0px)
+                this.size = Math.random() * 8.0 + 6.0; 
+                this.baseAlpha = Math.random() * 0.6 + 0.35; // 提高基礎亮度下限
+                this.alpha = 0.15;
+                this.twinkleSpeed = Math.random() * 0.006 + 0.002;
+                this.twinkleDirection = Math.random() > 0.5 ? 1 : -1;
+                this.driftSpeedX = (Math.random() - 0.5) * 0.05; // 緩慢的夜空漂移
+                this.driftSpeedY = (Math.random() - 0.5) * 0.05;
+            }
+
+            update() {
+                // 呼吸閃爍
+                this.alpha += this.twinkleSpeed * this.twinkleDirection;
+                if (this.alpha > this.baseAlpha || this.alpha < 0.1) {
+                    this.twinkleDirection *= -1;
+                }
+                
+                // 位置緩慢移動
+                this.x += this.driftSpeedX;
+                this.y += this.driftSpeedY;
+
+                // 邊界回繞
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.y > canvas.height) this.y = 0;
+            }
+
+            draw() {
+                // 中心淡出演算法：越接近正中央的大數字，星星亮度會越柔和
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const dx = this.x - centerX;
+                const dy = this.y - centerY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const maxDistance = Math.sqrt(centerX * centerX + centerY * centerY);
+
+                let fadeFactor = distance / (maxDistance * 0.8);
+                fadeFactor = Math.min(1, Math.max(0.15, fadeFactor)); // 中央位置保留至少 15% 的亮度
+
+                const finalAlpha = this.alpha * fadeFactor;
+
+                if (finalAlpha > 0.01) {
+                    const cx = this.x;
+                    const cy = this.y;
+                    const r = this.size; // 星芒半徑
+
+                    ctx.beginPath();
+                    // 使用二次貝氏曲線 (quadraticCurveTo) 繪製內凹的四角星芒
+                    ctx.moveTo(cx, cy - r);
+                    ctx.quadraticCurveTo(cx, cy, cx + r, cy);
+                    ctx.quadraticCurveTo(cx, cy, cx, cy + r);
+                    ctx.quadraticCurveTo(cx, cy, cx - r, cy);
+                    ctx.quadraticCurveTo(cx, cy, cx, cy - r);
+                    ctx.closePath();
+
+                    ctx.fillStyle = `rgba(255, 255, 255, ${finalAlpha})`;
+                    ctx.fill();
+
+                    // 在四角星中心繪製一個微小高亮核心點，讓星星看起來更閃耀
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, r * 0.22, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255, 255, 255, ${finalAlpha * 1.3})`;
+                    ctx.fill();
+                }
+            }
+        }
+
+        function initStars() {
+            stars = [];
+            for (let i = 0; i < STAR_COUNT; i++) {
+                stars.push(new Star());
+            }
+        }
+
+        function animateStars() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            stars.forEach(star => {
+                star.update();
+                star.draw();
+            });
+            requestAnimationFrame(animateStars);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('DOMContentLoaded', () => {
+            resizeCanvas();
+            animateStars();
+        });
+
+
+        // --- 2. 核心正計時邏輯 ---
+        let timerState = 'idle'; // 'idle', 'running', 'paused'
+        let secondsElapsed = 0;
+        let timerInterval = null;
+
+        const timerDisplay = document.getElementById('timer-display');
+        const btnPlayPause = document.getElementById('btn-play-pause');
+        const playIcon = document.getElementById('play-icon');
+        const pauseIcon = document.getElementById('pause-icon');
+        const btnReset = document.getElementById('btn-reset');
+
+        function paddedTime(num) {
+            return String(num).padStart(2, '0');
+        }
+
+        function updateTimerDisplay() {
+            const hours = Math.floor(secondsElapsed / 3600);
+            const minutes = Math.floor((secondsElapsed % 3600) / 60);
+            const seconds = secondsElapsed % 60;
+
+            if (hours > 0) {
+                // 超過一小時顯示 HH:MM:SS
+                timerDisplay.textContent = `${paddedTime(hours)}:${paddedTime(minutes)}:${paddedTime(seconds)}`;
+            } else {
+                // 一般顯示 MM:SS
+                timerDisplay.textContent = `${paddedTime(minutes)}:${paddedTime(seconds)}`;
+            }
+        }
+
+        function toggleTimer() {
+            if (timerState === 'idle' || timerState === 'paused') {
+                startTimer();
+            } else {
+                pauseTimer();
+            }
+        }
+
+        function startTimer() {
+            timerState = 'running';
+            playIcon.classList.add('hidden');
+            pauseIcon.classList.remove('hidden');
+
+            let startTime = Date.now() - (secondsElapsed * 1000);
+
+            timerInterval = setInterval(() => {
+                secondsElapsed = Math.floor((Date.now() - startTime) / 1000);
+                updateTimerDisplay();
+            }, 100);
+        }
+
+        function pauseTimer() {
+            timerState = 'paused';
+            playIcon.classList.remove('hidden');
+            pauseIcon.classList.add('hidden');
+
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+        }
+
+        function resetTimer() {
+            timerState = 'idle';
+            playIcon.classList.remove('hidden');
+            pauseIcon.classList.add('hidden');
+
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            secondsElapsed = 0;
+            updateTimerDisplay();
+        }
+
+        btnPlayPause.addEventListener('click', toggleTimer);
+        btnReset.addEventListener('click', resetTimer);
+
+
+        // --- 3. 全螢幕控制邏輯 ---
+        const btnFullscreen = document.getElementById('btn-fullscreen');
+        const expandIcon = document.getElementById('fullscreen-expand-icon');
+        const compressIcon = document.getElementById('fullscreen-compress-icon');
+
+        btnFullscreen.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.warn(`無法啟用全螢幕： ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        // 偵測全螢幕狀態切換 icon
+        document.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement) {
+                expandIcon.classList.add('hidden');
+                compressIcon.classList.remove('hidden');
+            } else {
+                expandIcon.classList.remove('hidden');
+                compressIcon.classList.add('hidden');
+            }
+            // 全螢幕切換時重繪 canvas 尺寸
+            setTimeout(resizeCanvas, 100);
+        });
+
+    </script>
+</body>
+</html>
